@@ -55,7 +55,7 @@ async fn main() {
         .route("/contact/form", get(contact_form_handler))
         .route("/contact/form", post(contact_submit_handler));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 7100));
     info!("Listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
