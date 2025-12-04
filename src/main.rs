@@ -10,8 +10,9 @@ use datastar::prelude::{PatchElements, PatchSignals};
 use serde::Deserialize;
 use serde_json::json;
 use std::{convert::Infallible, net::SocketAddr};
+use tokio::signal;
 use tower_http::services::ServeDir;
-use tracing::info;
+use tracing::{error, info};
 
 mod error;
 mod settings;
@@ -43,12 +44,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let settings = Settings::get();
 
     // Configure tracing based on settings
-    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| {
+    let env_filter = match tracing_subscriber::EnvFilter::try_from_default_env() {
+        Ok(filter) => filter,
+        Err(_) => {
             // Use log level from settings
             let default_filter = format!("debug,tower_http={}", settings.log.level);
             default_filter.parse().expect("Invalid filter directive")
-        });
+        }
+    };
 
     // Initialize tracing subscriber
     tracing_subscriber::fmt()
@@ -79,8 +82,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("Listening on {}", addr);
 
-    axum::serve(listener, app).await?;
+    // Start the server with graceful shutdown
+    if let Err(e) = axum::serve(listener, app)
+        .with_graceful_shutdown(wait_for_shutdown_signal())
+        .await
+    {
+        error!("Server error: {}", e);
+        return Err(e.into());
+    }
+
+    info!("Server has shut down gracefully");
     Ok(())
+}
+
+/// Wait for shutdown signals (SIGINT or SIGTERM)
+async fn wait_for_shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        () = ctrl_c => {
+            info!("Received Ctrl+C (SIGINT) signal");
+        },
+        () = terminate => {
+            info!("Received SIGTERM signal");
+        },
+    }
 }
 
 /// Handler for the main landing page
@@ -144,13 +185,19 @@ fn is_valid_email(email: &str) -> bool {
     }
 
     let parts: Vec<&str> = email.split('@').collect();
-
     let [local, domain] = parts.as_slice() else {
         return false;
     };
 
-    // Basic checks for local and domain parts
-    !local.is_empty() && !domain.is_empty() && domain.contains('.')
+    if local.is_empty() {
+        return false;
+    }
+
+    if domain.is_empty() {
+        return false;
+    }
+
+    domain.contains('.')
 }
 
 /// Handler for form submission
