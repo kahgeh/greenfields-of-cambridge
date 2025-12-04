@@ -1,0 +1,18 @@
+# Node modules
+node_modules/
+
+# Playwright test results
+test-results/
+playwright-report/
+
+# Traces
+.trace/
+
+# Videos (if enabled)
+videos/
+
+# Screenshots
+screenshots/
+
+# Server PID file
+../../.server.pid
