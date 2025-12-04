@@ -7,7 +7,9 @@
   <title>Greenfields of Cambridge | Professional Financial Services</title>
   <link rel="stylesheet" href="https://unpkg.com/open-props/open-props.min.css" />
   <link rel="stylesheet" href="https://unpkg.com/open-props/normalize.min.css" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script type="module"
+    src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.0-RC.6/bundles/datastar.js"></script>
 </head>
 
 <body>
@@ -214,9 +216,9 @@
         <div class="testimonials-grid">
           <blockquote class="testimonial-card">
             <p class="testimonial-text">
-              "Summit Accounting transformed our financial operations. Their
-              proactive approach to tax planning saved us over $100,000 last
-              year alone."
+              "Greenfields of Cambridge transformed our financial operations.
+              Their proactive approach to tax planning saved us over $100,000
+              last year alone."
             </p>
             <footer class="testimonial-author">
               <div class="author-info">
@@ -241,8 +243,9 @@
 
           <blockquote class="testimonial-card">
             <p class="testimonial-text">
-              "As a startup, we needed guidance beyond just numbers. Summit
-              provided strategic insights that helped us scale efficiently."
+              "As a startup, we needed guidance beyond just numbers.
+              Greenfields provided strategic insights that helped us scale
+              efficiently."
             </p>
             <footer class="testimonial-author">
               <div class="author-info">
@@ -289,44 +292,13 @@
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                 <polyline points="22,6 12,13 2,6"></polyline>
               </svg>
-              <span>info@summitaccounting.com</span>
+              <span>info@greenfieldsofcambridge.com</span>
             </div>
           </address>
         </div>
 
-        <form class="contact-form">
-          <div class="form-group">
-            <label for="name">Full Name</label>
-            <input type="text" id="name" name="name" required />
-          </div>
-          <div class="form-group">
-            <label for="email">Email Address</label>
-            <input type="email" id="email" name="email" required />
-          </div>
-          <div class="form-group">
-            <label for="phone">Phone Number</label>
-            <input type="tel" id="phone" name="phone" />
-          </div>
-          <div class="form-group">
-            <label for="service">Service Interested In</label>
-            <select id="service" name="service">
-              <option value="">Select a service...</option>
-              <option value="bookkeeping">Bookkeeping</option>
-              <option value="tax">Tax Planning</option>
-              <option value="advisory">Financial Advisory</option>
-              <option value="payroll">Payroll Services</option>
-              <option value="audit">Audit & Assurance</option>
-              <option value="consulting">Business Consulting</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="message">Message</label>
-            <textarea id="message" name="message" rows="4"></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary btn-lg btn-full">
-            Send Message
-          </button>
-        </form>
+        <!-- Include the form fragment directly -->
+        {% include "contact_form.html" %}
       </div>
     </section>
   </main>

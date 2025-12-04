@@ -1,5 +1,5 @@
 /* ===================================
-   Summit Accounting - Landing Page
+   Greenfields of Cambridge - Landing Page
    Using Open Props CSS Variables
    =================================== */
 
@@ -96,6 +96,19 @@ h3 {
 .btn-outline:hover {
   background: var(--brand-primary);
   color: var(--color-white);
+}
+
+.btn-secondary {
+  background: var(--gray-6);
+  color: var(--color-white);
+  border-color: var(--gray-6);
+}
+
+.btn-secondary:hover {
+  background: var(--gray-7);
+  border-color: var(--gray-7);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-3);
 }
 
 .btn-lg {
@@ -472,6 +485,8 @@ section {
   border-radius: var(--radius-2);
   font-family: inherit;
   font-size: var(--font-size-1);
+  background-color: var(--surface-1) !important;
+  color: var(--text-primary) !important;
   transition: border-color var(--ease-2) 0.2s, box-shadow var(--ease-2) 0.2s;
 }
 
@@ -481,6 +496,13 @@ section {
   outline: none;
   border-color: var(--brand-primary);
   box-shadow: 0 0 0 3px var(--indigo-2);
+}
+
+.form-group input.error,
+.form-group select.error,
+.form-group textarea.error {
+  border-color: var(--red-6);
+  background-color: var(--red-1);
 }
 
 .form-group textarea {
@@ -616,4 +638,67 @@ section {
   .footer-brand {
     grid-column: 1;
   }
+}
+
+/* Contact Form specific styles */
+.contact-form-wrapper {
+  /* Width constraints removed to maintain original form behavior */
+}
+
+.contact-success-wrapper {
+  text-align: center;
+}
+
+.contact-success-wrapper .success-icon {
+  color: var(--green-6);
+  margin-bottom: var(--size-4);
+}
+
+.contact-info-note {
+  font-size: var(--font-size-1);
+  color: var(--text-secondary);
+}
+
+.contact-info-note a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  font-weight: var(--font-weight-6);
+}
+
+.contact-info-note a:hover {
+  text-decoration: underline;
+}
+
+/* Alert styles for DataStar */
+.alert {
+  padding: var(--size-4);
+  border-radius: var(--radius-2);
+  margin-bottom: var(--size-5);
+}
+
+.alert-success {
+  background: var(--green-2);
+  color: var(--green-9);
+  border: 1px solid var(--green-3);
+}
+
+.alert-error {
+  background: var(--red-2);
+  color: var(--red-9);
+  border: 1px solid var(--red-3);
+}
+
+/* Alerts are controlled by Datastar's data-show attribute */
+
+/* Since DataStar is not loading, we'll handle alerts via JavaScript when the form is submitted */
+
+.alert h3 {
+  margin: 0 0 var(--size-2) 0;
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-6);
+}
+
+.alert p {
+  margin: 0;
+  font-size: var(--font-size-2);
 }

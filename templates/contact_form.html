@@ -1,0 +1,85 @@
+<div id="contact-form-container" class="contact-form-wrapper"
+  data-signals="{showSuccess: false, showError: false, errorMessage: '', name: '', email: '', phone: '', service: '', message: '', submitting: false}">
+  <!-- Success Message Section (hidden by default) -->
+  <div data-show="$showSuccess" class="contact-success-wrapper">
+    <div class="alert alert-success">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="success-icon">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+
+      <h3>Thank You for Reaching Out!</h3>
+      <p>
+        We've received your message and appreciate you contacting Greenfields of
+        Cambridge. Our team will review your inquiry and get back to you within
+        24 hours.
+      </p>
+
+      <p class="contact-info-note">
+        If you need immediate assistance, please call us at
+        <a href="tel:5551234567">(555) 123-4567</a>.
+      </p>
+    </div>
+
+    <!-- "Send another message" button that resets signals -->
+    <button class="btn btn-secondary btn-lg" data-on:click="$showSuccess = false; $showError = false"
+      style="margin-top: var(--size-fluid-3)">
+      Send Another Message
+    </button>
+  </div>
+
+  <!-- Error Message Section (hidden by default) -->
+  <div data-show="$showError" class="alert alert-error" style="margin-bottom: var(--size-fluid-3)">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="error-icon">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="8" x2="12" y2="12"></line>
+      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    <p data-text="$errorMessage"></p>
+  </div>
+
+  <!-- Contact Form (hidden when success is shown) -->
+  <form class="contact-form" data-indicator="submitting" data-show="!$showSuccess">
+    <div class="form-group">
+      <label for="name">Full Name *</label>
+      <input type="text" id="name" name="name" required minlength="2" placeholder="John Doe" data-bind="name" />
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email Address *</label>
+      <input type="email" id="email" name="email" required placeholder="john@example.com" data-bind="email" />
+    </div>
+
+    <div class="form-group">
+      <label for="phone">Phone Number</label>
+      <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" data-bind="phone" />
+    </div>
+
+    <div class="form-group">
+      <label for="service">Service Interested In</label>
+      <select id="service" name="service" data-bind="service">
+        <option value="">Select a service...</option>
+        <option value="bookkeeping">Bookkeeping</option>
+        <option value="tax">Tax Planning</option>
+        <option value="advisory">Financial Advisory</option>
+        <option value="payroll">Payroll Services</option>
+        <option value="audit">Audit & Assurance</option>
+        <option value="consulting">Business Consulting</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="message">Message</label>
+      <textarea id="message" name="message" rows="4" placeholder="Tell us about your needs..."
+        data-bind="message"></textarea>
+    </div>
+
+    <button type="button" class="btn btn-primary btn-lg btn-full"
+      data-on:click="@post('/contact/form', {contentType: 'form'})" data-bind-disabled="$submitting"
+      data-text="$submitting ? 'Sending...' : 'Send Message'">
+      Send Message
+    </button>
+  </form>
+</div>
