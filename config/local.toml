@@ -1,0 +1,5 @@
+# Local development configuration
+# This file overrides values from default.toml when run_environment=local
+
+[log]
+level = "debug"

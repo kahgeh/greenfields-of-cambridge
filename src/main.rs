@@ -12,10 +12,11 @@ use serde_json::json;
 use std::{convert::Infallible, net::SocketAddr};
 use tower_http::services::ServeDir;
 use tracing::info;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod error;
+mod settings;
 pub use error::AppError;
+pub use settings::{Settings, SettingsError};
 
 #[derive(Template)]
 #[template(path = "index.html")]
@@ -36,14 +37,31 @@ struct ContactFormData {
 }
 
 #[tokio::main]
-async fn main() {
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "greenfields_of_cambridge=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize settings
+    Settings::initialize()?;
+    let settings = Settings::get();
+
+    // Configure tracing based on settings
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| {
+            // Use log level from settings
+            let default_filter = format!("debug,tower_http={}", settings.log.level);
+            default_filter.parse().expect("Invalid filter directive")
+        });
+
+    // Initialize tracing subscriber
+    tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
         .init();
+
+    info!(
+        "Starting {} v{} on {}:{}",
+        settings.metadata.name,
+        settings.metadata.version,
+        settings.server.host,
+        settings.server.port
+    );
 
     // Create our router
     let app = Router::new()
@@ -55,11 +73,14 @@ async fn main() {
         .route("/contact/form", get(contact_form_handler))
         .route("/contact/form", post(contact_submit_handler));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 7100));
+    let addr = format!("{}:{}", settings.server.host, settings.server.port)
+        .parse::<SocketAddr>()?;
+
+    let listener = tokio::net::TcpListener::bind(addr).await?;
     info!("Listening on {}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 /// Handler for the main landing page
@@ -78,27 +99,23 @@ async fn contact_form_handler() -> Result<Response, AppError> {
 /// Validate contact form and return Result with custom validation errors
 fn validate_contact_form(form: &ContactFormData) -> Result<(), ContactFormError> {
     let name = form.name.trim();
+
     if name.is_empty() {
-        return Err(ContactFormError {
-            error_message: "Name is required".to_string(),
-        });
+        return Err(ContactFormError::new("Name is required"));
     }
+
     if name.len() < 2 {
-        return Err(ContactFormError {
-            error_message: "Name must be at least 2 characters".to_string(),
-        });
+        return Err(ContactFormError::new("Name must be at least 2 characters"));
     }
 
     let email = form.email.trim();
+
     if email.is_empty() {
-        return Err(ContactFormError {
-            error_message: "Email is required".to_string(),
-        });
+        return Err(ContactFormError::new("Email is required"));
     }
+
     if !is_valid_email(&form.email) {
-        return Err(ContactFormError {
-            error_message: "Please enter a valid email address".to_string(),
-        });
+        return Err(ContactFormError::new("Please enter a valid email address"));
     }
 
     Ok(())
@@ -110,20 +127,27 @@ struct ContactFormError {
     error_message: String,
 }
 
+impl ContactFormError {
+    fn new(message: &str) -> Self {
+        Self {
+            error_message: message.to_string(),
+        }
+    }
+}
+
 /// Basic email validation using a simple check for proper format
 fn is_valid_email(email: &str) -> bool {
     let email = email.trim();
+
     if !email.contains('@') {
         return false;
     }
 
     let parts: Vec<&str> = email.split('@').collect();
-    if parts.len() != 2 {
-        return false;
-    }
 
-    let local = parts[0];
-    let domain = parts[1];
+    let [local, domain] = parts.as_slice() else {
+        return false;
+    };
 
     // Basic checks for local and domain parts
     !local.is_empty() && !domain.is_empty() && domain.contains('.')
@@ -134,83 +158,98 @@ fn is_valid_email(email: &str) -> bool {
 async fn contact_submit_handler(Form(form): Form<ContactFormData>) -> Response {
     log_contact_form_submission(&form);
 
-    // Validate form
-    match validate_contact_form(&form) {
-        Ok(_) => {
-            // Process valid form data
-            log_successful_submission(&form);
-
-            // TODO: Send email, save to database, etc.
-            // For now, we'll just log it
-
-            // Send success signals
-            let signals = json!({
-                "showSuccess": true,
-                "showError": false,
-                "errorMessage": "",
-                // Reset form fields
-                "name": "",
-                "email": "",
-                "phone": "",
-                "service": "",
-                "message": ""
-            });
-
-            Sse::new(stream! {
-                let patch = PatchSignals::new(signals.to_string());
-                yield Ok::<_, Infallible>(patch.write_as_axum_sse_event());
-            })
-            .into_response()
-        }
-        Err(validation_error) => {
-            // Send error signals - preserve form fields and set error message
-            let escaped_error = validation_error.error_message.replace('"', "\\\"");
-            let signals = json!({
-                "showSuccess": false,
-                "showError": true,
-                "errorMessage": escaped_error,
-                // Preserve form fields
-                "name": sanitize_input(&form.name),
-                "email": sanitize_input(&form.email),
-                "phone": form.phone.as_ref().map(|s| sanitize_input(s)).unwrap_or_default(),
-                "service": form.service.as_ref().map(|s| sanitize_input(s)).unwrap_or_default(),
-                "message": form.message.as_ref().map(|s| sanitize_input(s)).unwrap_or_default()
-            });
-
-            Sse::new(stream! {
-                let patch = PatchSignals::new(signals.to_string());
-                yield Ok::<_, Infallible>(patch.write_as_axum_sse_event());
-            })
-            .into_response()
-        }
+    // Validate form and return early if invalid
+    if let Err(validation_error) = validate_contact_form(&form) {
+        return create_error_response(&form, validation_error);
     }
+
+    // Process valid form data
+    log_successful_submission(&form);
+
+    // TODO: Send email, save to database, etc.
+    // For now, we'll just log it
+
+    create_success_response()
+}
+
+fn create_success_response() -> Response {
+    let signals = json!({
+        "showSuccess": true,
+        "showError": false,
+        "errorMessage": "",
+        // Reset form fields
+        "name": "",
+        "email": "",
+        "phone": "",
+        "service": "",
+        "message": ""
+    });
+
+    Sse::new(stream! {
+        let patch = PatchSignals::new(signals.to_string());
+        yield Ok::<_, Infallible>(patch.write_as_axum_sse_event());
+    })
+    .into_response()
+}
+
+fn create_error_response(form: &ContactFormData, validation_error: ContactFormError) -> Response {
+    let escaped_error = validation_error.error_message.replace('"', "\\\"");
+    let signals = json!({
+        "showSuccess": false,
+        "showError": true,
+        "errorMessage": escaped_error,
+        // Preserve form fields
+        "name": sanitize_input(&form.name),
+        "email": sanitize_input(&form.email),
+        "phone": form.phone.as_ref().map(|s| sanitize_input(s)).unwrap_or_default(),
+        "service": form.service.as_ref().map(|s| sanitize_input(s)).unwrap_or_default(),
+        "message": form.message.as_ref().map(|s| sanitize_input(s)).unwrap_or_default()
+    });
+
+    Sse::new(stream! {
+        let patch = PatchSignals::new(signals.to_string());
+        yield Ok::<_, Infallible>(patch.write_as_axum_sse_event());
+    })
+    .into_response()
 }
 
 /// Log contact form submission details
 fn log_contact_form_submission(form: &ContactFormData) {
-    info!("Received contact form submission:");
-    info!("  Name: {}", sanitize_input(&form.name));
-    info!("  Email: {}", sanitize_input(&form.email));
+    let sanitized_fields = FormLogFields {
+        name: sanitize_input(&form.name),
+        email: sanitize_input(&form.email),
+        phone: form.phone.as_ref().map(|s| sanitize_input(s)),
+        service: form.service.as_ref().map(|s| sanitize_input(s)),
+        message: form.message.as_ref().map(|s| sanitize_input(s)),
+    };
+
     info!(
-        "  Phone: {:?}",
-        form.phone.as_ref().map(|s| sanitize_input(s))
+        "Received contact form submission: Name: {}, Email: {}, Phone: {:?}, Service: {:?}, Message: {:?}",
+        sanitized_fields.name,
+        sanitized_fields.email,
+        sanitized_fields.phone,
+        sanitized_fields.service,
+        sanitized_fields.message
     );
-    info!(
-        "  Service: {:?}",
-        form.service.as_ref().map(|s| sanitize_input(s))
-    );
-    info!(
-        "  Message: {:?}",
-        form.message.as_ref().map(|s| sanitize_input(s))
-    );
+}
+
+struct FormLogFields {
+    name: String,
+    email: String,
+    phone: Option<String>,
+    service: Option<String>,
+    message: Option<String>,
 }
 
 /// Log successful form validation
 fn log_successful_submission(form: &ContactFormData) {
+    let sanitized_name = sanitize_input(&form.name);
+    let sanitized_email = sanitize_input(&form.email);
+
     info!(
         "Successfully validated contact form from: {} ({})",
-        sanitize_input(&form.name),
-        sanitize_input(&form.email)
+        sanitized_name,
+        sanitized_email
     );
 }
 
@@ -224,10 +263,10 @@ fn create_sse_response(html: String) -> impl IntoResponse {
 
 /// Basic input sanitization to prevent XSS attacks
 fn sanitize_input(input: &str) -> String {
-    input
+    let sanitized: String = input
         .chars()
         .filter(|c| c.is_ascii() && !c.is_control())
-        .collect::<String>()
-        .trim()
-        .to_string()
+        .collect();
+
+    sanitized.trim().to_string()
 }

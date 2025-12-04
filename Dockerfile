@@ -29,6 +29,8 @@ RUN set -eux; \
 
 COPY --from=builder /app/target/release/greenfields-of-cambridge /usr/local/bin/
 COPY --from=builder /app/static /app/static
-EXPOSE 7100 
+COPY --from=builder /app/config /app/config
+
+EXPOSE 80 
 
 CMD ["greenfields-of-cambridge"]
